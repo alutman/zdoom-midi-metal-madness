@@ -1,0 +1,4 @@
+actor DemonSteeleIsSuperCoolAndYouShouldProbablyPlayIt : BulletPuff
+{
+    -SOLID
+}
