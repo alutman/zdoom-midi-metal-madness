@@ -1,14 +1,20 @@
-#include "zcommon.acs"
 #library "RANDMUS"
+#include "zcommon.acs"
 
-#include "commonFuncs.h" // Even in making a silly music randomizer mod, I require ijon's funcs.
+// #include "commonFuncs.h" // Even in making a silly music randomizer mod, I require ijon's funcs.
+// commonFuncs.h wouldn't compile in acc156, ported over the necessary stuff to a smaller file
+#include "util.h"
 
-int MusicRandomizerOn;
-int MusicInfo;
 int MusicCurrentSong;
 
 #define SONGSTR_INFO 1
 #define SONGSTR_SONG 0
+
+#define MAX_SUPPORTED_SONGS 9999
+
+int playedSongs[MAX_SUPPORTED_SONGS];
+int currentSongIndex = 0;
+int lastSongIndex = 0;
 
 function int getSongStr(int SongNumber, int Type)
 {
@@ -52,7 +58,7 @@ function int getMaxRandSong(void)
   int temp;
   int i;
   
-  for(i = 1; i < 9999; i++)
+  for(i = 1; i < MAX_SUPPORTED_SONGS; i++)
   { // Please do not use more than 9999 songs.
     temp = getSongStr(i, SONGSTR_INFO); // Compare the string and the language text, if they're the same it's the last one.
     if(!CStrCmp(temp, StrParam(l:temp)))
@@ -64,74 +70,135 @@ function int getMaxRandSong(void)
   return -1;
 }
 
+function int playSong(int songId) {
+  if(songId > 0) 
+  {
+    SetMusic(getSongStr(songId, SONGSTR_SONG),0);
+    MusicCurrentSong = songId;
+    return 0;
+  }
+  return 1;
+}
+
+function int getNextSong(void) 
+{
+  int songId;
+  // Too much history, not bothering to shift array
+  if(currentSongIndex+1 >= MAX_SUPPORTED_SONGS) 
+  {
+    //too much, i give up
+    return getRandomSongId();
+  }
+
+  // First song case
+  if(playedSongs[currentSongIndex] == 0) 
+  {
+    songId = getRandomSongId();
+    playedSongs[currentSongIndex] = songId;
+    return songId;
+  }
+
+  // Traversing a previously generated song
+  if(playedSongs[currentSongIndex+1] > 0) 
+  {
+    currentSongIndex += 1;
+    return playedSongs[currentSongIndex];
+  }
+  else // Need to generate a new song
+  {
+    songId = getRandomSongId();
+    playedSongs[currentSongIndex+1] = songId;
+    currentSongIndex += 1;
+    return songId;
+  }
+  return 0;
+}
+
+function int getPreviousSong(void) {
+  if(currentSongIndex-1 >= 0) {
+    currentSongIndex -= 1;
+    return playedSongs[currentSongIndex];
+  }
+  return 0;
+}
+
+function int showInfo(int songId) {
+  if(GetCvar("noinfo") == 0 && songId > 0)
+  {
+      int infoId = getSongStr(songId, SONGSTR_INFO);
+      if(CStrCmp(infoId, StrParam(l:infoId)))
+      {
+        SetFont("SmallFont");
+        hudmessage(l:infoId; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
+      }
+      return 0;
+  }
+    return 1;
+}
+
+
+function int getRandomSongId(void) {
+  int randSong = 0;
+  int randomhack;
+  int lastmus;
+  
+  if (GetCvar("mus_runninginzdoom") == 1)
+  {
+    randSong = random(1, getMaxRandSong());
+  }
+  else
+  {
+    // Zandronum is funny about this. Online, it generates the same random seed every
+    // time, even though that's the opposite of what you'd expect from a random call.
+    // I have to use a workaround to generate pseudo-random behavior.
+    // But it's better than dealing with ZDoom's barely-functional slapshod netcode!
+    
+    // [marrub] The reason this happens is the C/S code wants to be extra-deterministic
+    // so everyone gets the same (P)RNG. This is a guess. Please don't hit me, Dusk.
+    // Also on ZDoom everyone knows they have the same PRNG so there's no worry there.
+      
+    randomhack = defaultCVar("mus_cl_randomhack",   0);
+    lastmus    = defaultCVar("mus_cl_lastmusic",    0) - 1;
+    int i;
+    for (i = 0; i < randomhack; i++) { random(0, 1); }
+    randomhack = random(0, 500);
+    SaveCVar("mus_cl_randomhack", randomhack);
+    
+    do { i = random(1, getMaxRandSong()); }
+    while (i == lastmus);
+    randSong = i;
+    SaveCVar("mus_cl_lastmusic", i + 1);
+  }
+  return randSong;
+}
+
+function void defaultPlayedSongs(int start) {
+  int i;
+  for (i = start; i < MAX_SUPPORTED_SONGS; i++) {
+      playedSongs[i] = 0;
+  }
+}
+
 script 345 OPEN
 {
-    int r = unusedTID(37000, 47000);
+  int r = unusedTID(37000, 47000);
 
-    delay(1);
-    if (SpawnForced("SpeakerIcon",0,0,0,r,0))
-    { Thing_Remove(r); SetCVar("mus_runninginzdoom",1); }
-    else
-    { SetCVar("mus_runninginzdoom",0); }
+  delay(1);
+  if (SpawnForced("SpeakerIcon",0,0,0,r,0))
+  { Thing_Remove(r); SetCVar("mus_runninginzdoom",1); }
+  else
+  { SetCVar("mus_runninginzdoom",0); }
 }
 
 Script 346 OPEN NET clientside
 {
-  int i;
-  int randomhack;
-  int lastmus;
-  
   if(GetCvar("nomusic") == 0)
   {
-    MusicRandomizerOn = 1;
-    
-    if(GetCvar("mus_runninginzdoom") == 1)
-    {
-      i = random(1, getMaxRandSong());
-      SetMusic(getSongStr(i, SONGSTR_SONG),0);
-      MusicCurrentSong = i;
-    }
-    else
-    {
-      // Zandronum is funny about this. Online, it generates the same random seed every
-      // time, even though that's the opposite of what you'd expect from a random call.
-      // I have to use a workaround to generate pseudo-random behavior.
-      // But it's better than dealing with ZDoom's barely-functional slapshod netcode!
-      
-      // [marrub] The reason this happens is the C/S code wants to be extra-deterministic
-      // so everyone gets the same (P)RNG. This is a guess. Please don't hit me, Dusk.
-      // Also on ZDoom everyone knows they have the same PRNG so there's no worry there.
-      
-      randomhack = defaultCVar("mus_cl_randomhack", 0);
-      lastmus    = defaultCVar("mus_cl_lastmusic",  0) - 1;
-      
-      for (i = 0; i < randomhack; i++) { random(0, 1); }
-      randomhack = random(0, 500);
-      SaveCVar("mus_cl_randomhack", randomhack);
-      
-      do { i = random(1, getMaxRandSong()); }
-      while (i == lastmus);
-      
-      SetMusic(getSongStr(i, SONGSTR_SONG), 0);
-      MusicCurrentSong = i;
-      SaveCVar("mus_cl_lastmusic", i);
-    }
-    
+    defaultPlayedSongs(0);
+    int songId = getNextSong();
+    playSong(songId);
     Delay(35);
-    
-    if(GetCvar("noinfo") == 0)
-    {
-      MusicInfo = getSongStr(i, SONGSTR_INFO);
-      if(CStrCmp(MusicInfo, StrParam(l:MusicInfo)))
-      {                       // This compares the info with the language text it's associated with
-        SetFont("SmallFont"); // If it's the same, there is no language text associated with it, thus we should not print it
-        hudmessage(l:MusicInfo; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
-      }
-    }
-  }
-  else
-  {
-    MusicRandomizerOn = 0;
+    showInfo(songId);
   }
 }
 
@@ -155,61 +222,36 @@ script 347 OPEN clientside
   }
 }
 
-script 348 (int musicshit) NET clientside // Hitting "Next Song".
-{
-  int i;
-  int randomhack;
-  int lastmus;
 
-  switch (musicshit)
+script 348 (int mode) NET clientside
+{
+  int songId;
+  switch (mode)
   {
-    case 0:
+    case 0: // Next song
       SetMusic("silence");
       LocalAmbientSound("music/shift",127);
       Delay(35);
-      //if (GetCvar("nomusic") == 0) // If they're hitting Next Song, even with the randomizer off, they want music.
-      //{
-        MusicRandomizerOn = 1;
-        if (GetCvar("mus_runninginzdoom") == 1)
-        {
-          i = random(1, getMaxRandSong());
-          SetMusic(getSongStr(i, SONGSTR_SONG),0);
-          MusicCurrentSong = i;
-        }
-        else
-        {
-          randomhack = defaultCVar("mus_cl_randomhack",   0);
-          lastmus    = defaultCVar("mus_cl_lastmusic",    0) - 1;
-          
-          for (i = 0; i < randomhack; i++) { random(0, 1); }
-          randomhack = random(0, 500);
-          SaveCVar("mus_cl_randomhack", randomhack);
-          
-          do { i = random(1, getMaxRandSong()); }
-          while (i == lastmus);
-          
-          SetMusic(getSongStr(i, SONGSTR_SONG), 0);
-          MusicCurrentSong = i;
-          SaveCVar("mus_cl_lastmusic", i + 1);
-        }
-        if (GetCvar("noinfo") == 0)
-        {
-          MusicInfo = getSongStr(i, SONGSTR_INFO);
-          if(CStrCmp(MusicInfo, StrParam(l:MusicInfo)))
-          {
-            SetFont("SmallFont");
-            hudmessage(l:MusicInfo; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
-          }
-        }
-      //}
-      //else
-      //{
-      //  MusicRandomizerOn = 0;
-      //  SetMusic("*",0);
-      //}
+      songId = getNextSong();
+      playSong(songId);
+      Delay(35);
+      showInfo(songId);
       break;
-
-    case 1: // Hitting "Default Song".
+    case 1: // Previous song
+      songId = getPreviousSong();
+      if(songId > 0) { // Don't stop the music if there are no previous songs
+        SetMusic("silence");
+        LocalAmbientSound("music/shift",127);
+        Delay(35);
+        playSong(songId);
+        Delay(35);
+        showInfo(songId);
+      }
+      break;
+    case 2: // Show Info
+      showInfo(MusicCurrentSong);
+      break;
+    case 3: // Hitting "Default Song".
       SetMusic("silence");
       LocalAmbientSound("music/shift",127);
       Delay(35);
@@ -218,34 +260,15 @@ script 348 (int musicshit) NET clientside // Hitting "Next Song".
   }
 }
 
-script 349 (int fuckery) NET clientside // Manually changing the song
+script 349 (int songId) NET clientside // Manually changing the song
 {
-  if(fuckery > 0)
-  {
-    SetMusic("silence");
-    LocalAmbientSound("music/shift",127);
-    Delay(35);
-    
-    MusicRandomizerOn = 1;
-    if(GetCvar("mus_runninginzdoom") == 1)
-    {
-      SetMusic(getSongStr(fuckery, SONGSTR_SONG),0);
-      MusicCurrentSong = fuckery;
-    }
-    else
-    {
-      SetMusic(getSongStr(fuckery, SONGSTR_SONG), 0);
-      MusicCurrentSong = fuckery;
-    }
-    
-    if(GetCvar("noinfo") == 0)
-    {
-      MusicInfo = getSongStr(fuckery, SONGSTR_INFO);
-      if(CStrCmp(MusicInfo, StrParam(l:MusicInfo)))
-      {
-        SetFont("SmallFont");
-        hudmessage(l:MusicInfo; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
-      }
+  if(songId > 0){
+    if(currentSongIndex+1 < MAX_SUPPORTED_SONGS) {
+      currentSongIndex += 1;
+      playedSongs[currentSongIndex] = songId;
+      defaultPlayedSongs(currentSongIndex+1); // Empty out saved history for songs after this one
     }
   }
+  playSong(songId);
+  showInfo(songId);
 }

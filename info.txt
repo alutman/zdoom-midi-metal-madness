@@ -1,3 +1,19 @@
+Midi Metal Madness
+===================
+
+Modification of "Thats what I call MIDI", 2nd unofficial version
+
+* Fixed music not playing in new GZDoom
+* Gave all music files an extension
+* Added track history with previous track button
+* Show track info button
+
+TODO
+* Filter genres option
+
+==========
+= Original
+=========
 CREDITS TO:
 TerminusEst13 (Original release)
 Bloax (Song gathering, info checking)
