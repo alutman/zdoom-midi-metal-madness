@@ -7,10 +7,18 @@ Modification of "Thats what I call MIDI", 2nd unofficial version
 * Gave all music files an extension
 * Added track history with previous track button
 * Show track info button
+* Removed code surrounding Zandorum random number generator as it seems fine in 3.0
 
 TODO
+* Track history works across map changes
 * Filter genres option
+* Option to play next track instead of looping
+* Search tracks by artist/name/genre
+* Persistent rating system to favor/disfavor tracks
 
+
+CREDITS TO:
+Lex (Track history & code refactor)
 ==========
 = Original
 =========

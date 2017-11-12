@@ -1,4 +1,0 @@
-actor DemonSteeleIsSuperCoolAndYouShouldProbablyPlayIt : BulletPuff
-{
-    -SOLID
-}
