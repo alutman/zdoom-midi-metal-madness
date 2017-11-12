@@ -7,10 +7,10 @@
 #define SONGSTR_PREFIX "JUKEBOX_"
 #define SONGFILE_PREFIX "SONG"
 
-int playedSongs[MAX_SUPPORTED_SONGS];
-int currentSongIndex = 0;
 
-int MusicCurrentSong;
+global int 1:currentSongIndex;
+global int 2:playedSongs[];
+global bool 3:doneInit;
 
 function int cstrcmp(int s1, int s2)
 {
@@ -80,7 +80,6 @@ function int playSong(int songId) {
   if(songId > 0) 
   {
     SetMusic(getSongFile(songId),0);
-    MusicCurrentSong = songId;
     return 0;
   }
   return 1;
@@ -171,7 +170,11 @@ Script 346 ENTER clientside
 {
   if(GetCvar(NO_MUSIC_CVAR) == 0)
   {
-    defaultPlayedSongs(0);
+    if(!doneInit) {
+      defaultPlayedSongs(0);  
+      doneInit = true;
+    }
+    
     int songId = getNextSong();
     playSong(songId);
     Delay(35);
@@ -207,7 +210,7 @@ script 348 (int mode) NET clientside
         }
         break;
       case 2: // Show Info
-        forceShowInfo(MusicCurrentSong);
+        forceShowInfo(playedSongs[currentSongIndex]);
         break;
       case 3: // Hitting "Default Song".
         SetMusic("silence");
