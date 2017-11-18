@@ -4,6 +4,7 @@
 #define MAX_SUPPORTED_SONGS 999
 #define NO_MUSIC_CVAR "mus_nomusic"
 #define NO_INFO_CVAR "mus_noinfo"
+#define SERVER_MODE_CVAR "mus_servermode"
 #define SONGSTR_PREFIX "JUKEBOX_"
 #define SONGFILE_PREFIX "SONG"
 
@@ -76,13 +77,44 @@ function int getMaxRandSong(void)
   return -1;
 }
 
-function int playSong(int songId) {
+function void silence(bool serverMode)
+{
+  if(serverMode) {
+    SetMusic("silence");
+  }
+  else {
+    LocalSetMusic("silence");
+  }
+  
+}
+
+function int playSong(int songId, bool serverMode) 
+{
   if(songId > 0) 
   {
-    SetMusic(getSongFile(songId),0);
+    if (serverMode) {
+      SetMusic(getSongFile(songId),0);
+    }
+    else {
+      LocalSetMusic(getSongFile(songId),0);  
+    }
+    return 0;
+  }
+  else {
+    if (serverMode) {
+      SetMusic("*",0);
+    }
+    else {
+      LocalSetMusic("*",0);  
+    }
     return 0;
   }
   return 1;
+}
+
+function int getCurrentSong(void)
+{
+  return playedSongs[currentSongIndex];
 }
 
 function int getNextSong(void) 
@@ -127,25 +159,32 @@ function int getPreviousSong(void) {
   return 0;
 }
 
-function int forceShowInfo(int songId) 
+function int forceShowInfo(int songId, bool serverMode) 
 {
-  return showInfoCond(songId, true);
+  return showInfoCond(songId, true, serverMode);
 }
 
-function int showInfo(int songId) 
+function int showInfo(int songId, bool serverMode) 
 {
-  return showInfoCond(songId, GetCvar(NO_INFO_CVAR) == 0);
+  return showInfoCond(songId, GetCvar(NO_INFO_CVAR) == 0, serverMode);
 }
 
-function int showInfoCond(int songId, bool condition) 
+function int showInfoCond(int songId, bool condition, bool serverMode) 
 {
-  if(condition && songId > 0)
+  if(condition)
   {
       int infoId = getSongInfo(songId);
       if(CStrCmp(infoId, StrParam(l:infoId)))
       {
         SetFont("SmallFont");
-        hudmessage(l:infoId; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
+        if(serverMode)
+        {
+          HudMessageBold(l:infoId; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
+        }
+        else {
+          HudMessage(l:infoId; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);  
+        }
+        
       }
       return 0;
   }
@@ -166,80 +205,148 @@ function void defaultPlayedSongs(int start) {
   }
 }
 
-Script 346 ENTER clientside
+// START SONGINFO
+Script 340 (void) NET
 {
-  if(GetCvar(NO_MUSIC_CVAR) == 0)
+  int songId = getCurrentSong();
+  if(GetCvar(SERVER_MODE_CVAR) == 1) {
+    ACS_Execute(341, 0, songId, 1, 0);
+  }
+  else {
+    ACS_Execute(341, 0, songId, 0, 0);  
+  }
+}
+Script 341 (int songId, int serverMode) NET clientside
+{
+  if (serverMode) {
+    forceShowInfo(songId, false);  
+  }
+  else {
+    forceShowInfo(getCurrentSong(), false);
+  }
+}
+// END SONGINFO
+
+// Display the songinfo when the player enters
+Script 342 ENTER clientside
+{
+  if(GetCvar(SERVER_MODE_CVAR) == 1) {
+    RequestScriptPuke(340, 0, 0, 0);
+  }
+  else {
+    ACS_Execute(340, 0, 0, 0, 0);  
+  }
+  
+}
+
+// START INIT
+Script 344 OPEN
+{
+  if(GetCvar(SERVER_MODE_CVAR) == 1)
   {
     if(!doneInit) {
       defaultPlayedSongs(0);  
       doneInit = true;
     }
     
+    silence(true);
     int songId = getNextSong();
-    playSong(songId);
-    Delay(35);
-    showInfo(songId);
+    playSong(songId, true);
+  }
+}
+Script 345 OPEN clientside
+{
+  if(GetCvar(SERVER_MODE_CVAR) != 1)
+  {
+    if(!doneInit) {
+      defaultPlayedSongs(0);  
+      doneInit = true;
+    }
+    
+    silence(true);
+    int songId = getNextSong();
+    playSong(songId, true);
+  }
+}
+// END INIT
+
+// START CONTROL
+script 346 (int mode, int serverMode)
+{
+  int songId;
+  switch (mode)
+  {
+    case 0: // Next song
+      silence(serverMode);
+      LocalAmbientSound("music/shift",127);
+      Delay(35);
+      songId = getNextSong();
+      playSong(songId, serverMode);
+      Delay(35);
+      showInfo(songId, serverMode);
+      break;
+    case 1: // Previous song
+      songId = getPreviousSong();
+      if(songId > 0) { // Don't stop the music if there are no previous songs
+        silence(serverMode);
+        LocalAmbientSound("music/shift",127);
+        Delay(35);
+        playSong(songId, serverMode);
+        Delay(35);
+        showInfo(songId, serverMode);
+      }
+      break;
+    case 2: // Default Song
+      silence(serverMode);
+      LocalAmbientSound("music/shift",127);
+      Delay(35);
+      playSong(0,serverMode);
+      Delay(35);
+      showInfo(0,serverMode);
+      
+      break;
   }
 }
 
+script 347 (int mode)
+{
+  if(GetCvar(SERVER_MODE_CVAR) == 1) {
+    ACS_Execute(346, 0, mode, 1, 0);  
+  }
+}
 script 348 (int mode) NET clientside
 {
-  if(GetCvar(NO_MUSIC_CVAR) == 0)
-  {
-    int songId;
-    switch (mode)
-    {
-      case 0: // Next song
-        SetMusic("silence");
-        LocalAmbientSound("music/shift",127);
-        Delay(35);
-        songId = getNextSong();
-        playSong(songId);
-        Delay(35);
-        showInfo(songId);
-        break;
-      case 1: // Previous song
-        songId = getPreviousSong();
-        if(songId > 0) { // Don't stop the music if there are no previous songs
-          SetMusic("silence");
-          LocalAmbientSound("music/shift",127);
-          Delay(35);
-          playSong(songId);
-          Delay(35);
-          showInfo(songId);
-        }
-        break;
-      case 2: // Show Info
-        forceShowInfo(playedSongs[currentSongIndex]);
-        break;
-      case 3: // Hitting "Default Song".
-        SetMusic("silence");
-        LocalAmbientSound("music/shift",127);
-        Delay(35);
-        SetMusic("*",0);
-        break;
+  if(GetCvar(SERVER_MODE_CVAR) != 1) {
+    ACS_Execute(346, 0, mode, 0, 0);  
+  }
+}
+//END CONTROL
+
+// START MANUAL SONG
+script 349 (int songId, int serverMode)
+{
+  if(songId > 0){
+    if(currentSongIndex+1 < MAX_SUPPORTED_SONGS) {
+      currentSongIndex += 1;
+      playedSongs[currentSongIndex] = songId;
+      defaultPlayedSongs(currentSongIndex+1); // Empty out saved history for songs after this one
     }
   }
-  else {
-    Log(s:StrParam(s:NO_MUSIC_CVAR, s:" is enabled"));
+  playSong(songId, serverMode);
+  showInfo(songId, serverMode);
+}
+script 350 (int songId) // Manually changing the song
+{
+  if(GetCvar(SERVER_MODE_CVAR) == 1) {
+    ACS_Execute(349, 0, songId, 1, 0);  
   }
 }
 
-script 349 (int songId) NET clientside // Manually changing the song
+script 351 (int songId) NET clientside // Manually changing the song
 {
-  if(GetCvar(NO_MUSIC_CVAR) == 0)
-  {
-    if(songId > 0){
-      if(currentSongIndex+1 < MAX_SUPPORTED_SONGS) {
-        currentSongIndex += 1;
-        playedSongs[currentSongIndex] = songId;
-        defaultPlayedSongs(currentSongIndex+1); // Empty out saved history for songs after this one
-      }
-    }
-    playSong(songId);
-    showInfo(songId);
-  }
-  else {
-    Log(s:StrParam(s:NO_MUSIC_CVAR, s:" is enabled"));
+  if(GetCvar(SERVER_MODE_CVAR) != 1) {
+    ACS_Execute(349, 0, songId, 0, 0);  
   }
 }
+
+// END MANUAL SONG
