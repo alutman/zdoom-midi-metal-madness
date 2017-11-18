@@ -1,26 +1,35 @@
 Midi Metal Madness
 ===================
+Thats what I call MIDI, unofficial V3
 
-Modification of "Thats what I call MIDI", 2nd unofficial version
+Modification of 
+    "Thats what I call MIDI", 2nd unofficial version
 
-* Fixed music not playing in new GZDoom
-* Gave all music files an extension
-* Added track history with previous track button
-* Show track info button
-* Removed code surrounding Zandorum random number generator as it seems fine in 3.0
+Settings
+--------
+* (server) mus_servermode [0|1] : Disable/Enable server music mode (Only the server can change the track, everyone hears the same song)
+
+Commands
+-------
+* songinfo: Display the currently playing song
+
+#### Client mode (mus_servermode 0)
+* nextsong: Play the next song. If there's no history at this point, it will be a random song 
+* prevsong: Play the previous song. Does nothing if there's no previous
+* origsong: Play the original level song instead
+
+#### Server mode  (mus_servermode 1)
+* s_nextsong: Like Client but run on the server. Will forward the song in the same way for all players 
+* s_prevsong: Like Client but run on the server
+* s_origsong: Like Client but run on the server
 
 TODO
 * Filter genres option
 * Option to play next track instead of looping
 * Search tracks by artist/name/genre
 * Persistent rating system to favor/disfavor tracks
+* Find a way to get noinfo and nomusic working with server mode
 
-
-CREDITS TO:
-Lex (Track history & code refactor)
-==========
-= Original
-=========
 CREDITS TO:
 TerminusEst13 (Original release)
 Bloax (Song gathering, info checking)
@@ -30,8 +39,18 @@ CookieJar (Song gathering)
 Ryan Cordell (Fixing the "song xxx" bug)
 Marrub (Converting all the ACS to use strParam instead of an array, clientsiding the music as well)
 Truvix (Song Gathering, info checking)
+Lex (Track history, code refactor, server mode)
 
-UNOFFICIAL EXPANSION
+UNOFFICIAL EXPANSION V3
+=======================
+- Fixed music not playing in new GZDoom
+- Gave all music files an extension
+- Added track history with previous track button
+- Show track info button
+- Removed code surrounding Zandorum random number generator as it seems fine in 3.0
+- Added server mode to have all players hear the same song
+
+UNOFFICIAL EXPANSION V2
 ===========================
 - 149 new songs
 - Yep, just songs

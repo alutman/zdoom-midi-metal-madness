@@ -2,8 +2,6 @@
 #include "zcommon.acs"
 
 #define MAX_SUPPORTED_SONGS 999
-#define NO_MUSIC_CVAR "mus_nomusic"
-#define NO_INFO_CVAR "mus_noinfo"
 #define SERVER_MODE_CVAR "mus_servermode"
 #define SONGSTR_PREFIX "JUKEBOX_"
 #define SONGFILE_PREFIX "SONG"
@@ -159,14 +157,9 @@ function int getPreviousSong(void) {
   return 0;
 }
 
-function int forceShowInfo(int songId, bool serverMode) 
-{
-  return showInfoCond(songId, true, serverMode);
-}
-
 function int showInfo(int songId, bool serverMode) 
 {
-  return showInfoCond(songId, GetCvar(NO_INFO_CVAR) == 0, serverMode);
+  return showInfoCond(songId, true, serverMode);
 }
 
 function int showInfoCond(int songId, bool condition, bool serverMode) 
@@ -219,10 +212,10 @@ Script 340 (void) NET
 Script 341 (int songId, int serverMode) NET clientside
 {
   if (serverMode) {
-    forceShowInfo(songId, false);  
+    showInfo(songId, false);  
   }
   else {
-    forceShowInfo(getCurrentSong(), false);
+    showInfo(getCurrentSong(), false);
   }
 }
 // END SONGINFO
