@@ -1,9 +1,9 @@
 Midi Metal Madness
 ===================
-Thats what I call MIDI, unofficial V3
+Thats what I call MIDI, unofficial V3.
 
-Modification of 
-    "Thats what I call MIDI", 2nd unofficial version
+Modification of '"Thats what I call MIDI", 2nd unofficial version' which was an update of 150 tracks over the Official "Thats what I call MIDI".
+This version is also very unofficial and in no way related to the original author (Terminus) or the updater  (Truvix)
 
 Settings
 --------
@@ -24,13 +24,16 @@ Commands
 * s_origsong: Like Client but run on the server
 
 TODO
+* Find a way to get noinfo and nomusic working with server mode
+* Make the origsong option stay on until pressed explicitly again (nomus?)
 * Filter genres option
 * Option to play next track instead of looping
 * Search tracks by artist/name/genre
-* Persistent rating system to favor/disfavor tracks
-* Find a way to get noinfo and nomusic working with server mode
+* Better psudorandom. Store history so you don't hear the same song twice until you hear them all. Persist over shutdowns
 
-CREDITS TO:
+
+CREDITS TO
+----------
 TerminusEst13 (Original release)
 Bloax (Song gathering, info checking)
 TheToxicAvenger (Song gathering, info checking)
@@ -40,6 +43,10 @@ Ryan Cordell (Fixing the "song xxx" bug)
 Marrub (Converting all the ACS to use strParam instead of an array, clientsiding the music as well)
 Truvix (Song Gathering, info checking)
 Lex (Track history, code refactor, server mode)
+
+
+Changelog
+----------
 
 UNOFFICIAL EXPANSION V3
 =======================

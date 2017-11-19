@@ -14,17 +14,17 @@ global bool 3:doneInit;
 function int cstrcmp(int s1, int s2)
 {
   int i = 0;
-  int fuck, acs;
+  int c1, c2;
   
   while(true) {
-    fuck = GetChar(s1, i); acs = GetChar(s2, i);
+    c1 = GetChar(s1, i); c2 = GetChar(s2, i);
     
-    if((!fuck && !acs) || (fuck != acs)) { break; }
+    if((!c1 && !c2) || (c1 != c2)) { break; }
     
     i++;
   }
   
-  return fuck - acs;
+  return c1 - c2;
 }
 
 function int getSongStr(int SongNumber, int PrefixString)
