@@ -1,9 +1,16 @@
 Midi Metal Madness
 ===================
+Description
+-----------
+ZDoom plugin that plays MIDI versions of metal songs instead of the default Doom tracks. Songs are randomly selected from a list of 650.
+
+Clarification
+-------------
 Thats what I call MIDI, unofficial V3.
 
 Modification of '"Thats what I call MIDI", 2nd unofficial version' which was an update of 150 tracks over the Official "Thats what I call MIDI".
-This version is also very unofficial and in no way related to the original author (Terminus) or the updater  (Truvix)
+This version is also very unofficial and in no way related to the original author (Terminus) or the updater (Truvix). 
+Just a fan version with some extra features I wanted
 
 Settings
 --------
