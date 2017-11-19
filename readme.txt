@@ -12,6 +12,12 @@ Modification of '"Thats what I call MIDI", 2nd unofficial version' which was an 
 This version is also very unofficial and in no way related to the original author (Terminus) or the updater (Truvix). 
 Just a fan version with some extra features I wanted
 
+
+Licensing
+---------
+I don't know the license of all the MIDI files so I haven't included them in this repo yet.
+If you download a previous version from elsewhere and place the music & sound folders in this one, it should work fine.
+
 Settings
 --------
 * (server) mus_servermode [0|1] : Disable/Enable server music mode (Only the server can change the track, everyone hears the same song)
