@@ -1,5 +1,6 @@
 [enu default]
 
+JUKEBOX_000 = "\cbDefault Song";
 // Wave 1
 JUKEBOX_001 = "\cbTrack: \cj001\n\cbArtist: \cj3 Inches of Blood\n\cbSong: \cjGoatrider's Horde\n\cbAlbum: \cjFire up the Blades\n\cbGenre: \cjThrash Metal";
 JUKEBOX_002 = "\cbTrack: \cj002\n\cbArtist: \cjAC/DC\n\cbSong: \cjBack in Black\n\cbAlbum: \cjBack in Black\n\cbGenre: \cjHard Rock";
