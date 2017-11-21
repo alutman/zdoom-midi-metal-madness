@@ -2,7 +2,30 @@ Midi Metal Madness
 ===================
 Description
 -----------
+Modification of '"Thats what I call MIDI", 2nd unofficial version
 ZDoom plugin that plays MIDI versions of metal songs instead of the default Doom tracks. Songs are randomly selected from a list of 650.
+
+Settings
+--------
+* (server) mus_servermode [0|1] : Disable/Enable server music mode. Only the server can change the track, everyone hears the same song. Client mode will give everyone their own jukebox to control and listen to.
+* (client) mus_default [0|1] : Play the default music on level start.
+
+Commands
+-------
+All client side ones are keybindable
+
+* songinfo: Display the currently playing song. Works with client and server mode.
+
+#### Client mode (mus_servermode 0)
+* nextsong: Play the next song. If there's no history at this point, it will be a random song 
+* prevsong: Play the previous song. Does nothing if there's no previous
+* origsong: Toggles mus_default, playing default music or the current song as appropriate
+
+#### Server mode  (mus_servermode 1)
+* s_nextsong: Like Client but run on the server. Will forward the song in the same way for all players 
+* s_prevsong: Like Client but run on the server
+* s_origsong: Like Client but run on the server
+
 
 Clarification
 -------------
@@ -16,29 +39,10 @@ Just a fan version with some extra features I wanted
 Licensing
 ---------
 I don't know the license of all the MIDI files so I haven't included them in this repo yet.
-If you download a previous version from elsewhere and place the music & sound folders in this one, it should work fine.
+If you download a previous version from elsewhere and place the `music` & `sounds` folders in this one, it should work fine.
 
-Settings
---------
-* (server) mus_servermode [0|1] : Disable/Enable server music mode (Only the server can change the track, everyone hears the same song)
-
-Commands
--------
-* songinfo: Display the currently playing song
-
-#### Client mode (mus_servermode 0)
-* nextsong: Play the next song. If there's no history at this point, it will be a random song 
-* prevsong: Play the previous song. Does nothing if there's no previous
-* origsong: Play the original level song instead
-
-#### Server mode  (mus_servermode 1)
-* s_nextsong: Like Client but run on the server. Will forward the song in the same way for all players 
-* s_prevsong: Like Client but run on the server
-* s_origsong: Like Client but run on the server
 
 TODO
-* Find a way to get noinfo and nomusic working with server mode
-* Make the origsong option stay on until pressed explicitly again (nomus?)
 * Filter genres option
 * Option to play next track instead of looping
 * Search tracks by artist/name/genre

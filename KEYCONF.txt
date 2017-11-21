@@ -6,7 +6,7 @@ addmenukey "Show song info" songinfo
 addmenukey "Default song" origsong
 
 
-alias songinfo "puke -340"
+alias songinfo "puke -341"
 
 alias nextsong "puke -348 0"
 alias prevsong "puke -348 1"

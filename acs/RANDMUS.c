@@ -11,8 +11,8 @@
 global int 1:currentSongIndex;
 global int 2:playedSongs[];
 global bool 3:doneInit;
-global bool 4:hasEntered;
 
+//// START FUNCTIONS ////
 function int cstrcmp(int s1, int s2)
 {
   int i = 0;
@@ -31,8 +31,8 @@ function int cstrcmp(int s1, int s2)
 
 function int getSongStr(int SongNumber, int PrefixString)
 {
-    // if the song amount ever goes over 1000, uncomment everything but this line ...
-  int OneZero = "0"; int TwoZeros = "00"; // int ThreeZeros = "000";
+    
+  int OneZero = "0"; int TwoZeros = "00";
   int OutputString;
   if(SongNumber <= 9)
   { // if it's less than 10 (1 digit, two zeros)
@@ -50,24 +50,14 @@ function int getSongStr(int SongNumber, int PrefixString)
   return OutputString;
 }
 
-function int getSongInfo(int SongNumber)
-{
-  return getSongStr(SongNumber, SONGSTR_PREFIX);
-}
-
-function int getSongFile(int SongNumber)
-{
-  return getSongStr(SongNumber, SONGFILE_PREFIX);
-}
-
 function int getMaxRandSong(void)
 {
   int temp;
   int i;
   
   for(i = 1; i < MAX_SUPPORTED_SONGS; i++)
-  { // Please do not use more than 9999 songs.
-    temp = getSongInfo(i); // Compare the string and the language text, if they're the same it's the last one.
+  {
+    temp = getSongStr(i, SONGSTR_PREFIX); // Compare the string and the language text, if they're the same it's the last one.
     if(!CStrCmp(temp, StrParam(l:temp)))
     {
       return i - 1;
@@ -77,7 +67,7 @@ function int getMaxRandSong(void)
   return -1;
 }
 
-function void playTapeChange(void)
+function void tapeChange(void)
 {
   AmbientSound("music/shift",127);
 }
@@ -90,10 +80,10 @@ function int playSong(int songId)
 {
   if(songId > 0) 
   {
-    SetMusic(getSongFile(songId), 0);
+    SetMusic(getSongStr(songId, SONGFILE_PREFIX), 0);
     return 0;
   }
-  else {
+  else { // Treating zero as meaning the default song
     SetMusic("*", 0);
     return 0;
   }
@@ -152,19 +142,16 @@ function int isServerMode(void) {
 }
 
 function int isDefaultMode(void) {
-  return !isServerMode() && GetCvar(DEFAULT_MODE_CVAR) == 1;
+  return GetCvar(DEFAULT_MODE_CVAR) == 1;
 }
 
 function void setDefaultMode(int val) {
-  if(!isServerMode()) {
-    SetCvar(DEFAULT_MODE_CVAR, val);  
-  }
-  
+  SetCvar(DEFAULT_MODE_CVAR, val);
 }
 
 function int isValidSong(int songId)
 {
-  int infoId = getSongInfo(songId);
+  int infoId = getSongStr(songId, SONGSTR_PREFIX);
   return CStrCmp(infoId, StrParam(l:infoId));
 }
 
@@ -180,9 +167,9 @@ function int showInfoMode(int songId, bool bold)
 {
   if(isValidSong(songId))
   {
-    int infoId = getSongInfo(songId);
+    int infoId = getSongStr(songId, SONGSTR_PREFIX);
     SetFont("SmallFont");
-    if(bold) {
+    if(bold) { // Bold when run on the server, notifies all players, non-bold is activator only
       HudMessageBold(l:infoId; HUDMSG_FADEINOUT | HUDMSG_LOG, 153, CR_WHITE, 0.1, 0.8, 3.0, 0.5, 1.0);
     }
     else {
@@ -199,6 +186,7 @@ function int getRandomSongId(void) {
   return randSong;
 }
 
+// Set playedSongs array values to zero
 function void defaultPlayedSongs(int start) {
   int i;
   for (i = start; i < MAX_SUPPORTED_SONGS; i++) {
@@ -206,169 +194,203 @@ function void defaultPlayedSongs(int start) {
   }
 }
 
-// START SONGINFO
+//// END FUNCTIONS ////
+
+//// START SONGINFO ////
+
+// Tell clients the server's current song
 Script 340 (void) NET
 {
   int songId = getCurrentSong();
-  ACS_Execute(341, 0, songId, 0, 0);  
+  showLocalInfo(songId);  
 }
-Script 341 (int songId, int serverMode) NET clientside
+
+// Called by 'origsong' command
+Script 341 (void) NET clientside
 {
   if(isServerMode()) {
-    showLocalInfo(songId);  
+    RequestScriptPuke(340, 0, 0, 0); //Request the server parrot the songinfo
   }
   else {
+    // Client side NET never leaves the local machine
     if(isDefaultMode()) {
-      showLocalInfo(0);
+      showInfo(0);
     }
     else {
-      showLocalInfo(getCurrentSong());  
+      showInfo(getCurrentSong());  
     }
   }
 }
-// END SONGINFO
+//// END SONGINFO ////
 
-// Display the songinfo when the player enters
-Script 342 ENTER clientside
-{
 
-  // if(isServerMode()) {
-  //   RequestScriptPuke(340, 0, 0, 0);
-  // }
-  // else {
-  //   ACS_Execute(340, 0, 0, 0, 0);
-  // }
-  if(!isServerMode() && !isDefaultMode()) {
-    silence();
-    playSong(getCurrentSong());
-    ACS_Execute(340, 0, 0, 0, 0);
-  }
-  else if(!isServerMode() && isDefaultMode())  {
-    getPreviousSong();
-  }
-  else {
-    RequestScriptPuke(340, 0, 0, 0);
-  }
-}
-
-// START INIT
-Script 344 OPEN
+//// START INIT ////
+// SERVER
+// Tell new players the currently playing song
+Script 342 ENTER
 {
   if(isServerMode())
   {
-    if(!doneInit) {
-      defaultPlayedSongs(0);  
-      doneInit = true;
-    }
-    silence();
-    int songId = getNextSong();
-    playSong(songId);
+    Delay(35);
+    showLocalInfo(getCurrentSong()); 
   }
 }
+
+// CLIENT
+// Start a new song if we're a clientmode user. Start song has to be here
+// as only ENTER has the CVAR for default mode needed to properly use script 390
+//
+// Side effect of using this method is that it will fire for all waiting MP players
+// as soon as one of them joins. Can't find a way to properly link client map variables here
+// to specific players
+bool hasEntered = false; // Must run ONLY once
+Script 331 ENTER CLIENTSIDE
+{
+  if(!isServerMode() && !hasEntered) // This will be using client side song history
+  {
+    if(!isDefaultMode()) { // Don't want to progress the nextSong if we're in default mode
+      int songId = getNextSong();
+      ACS_ExecuteWithResult(390, songId, 0, 1, 0); // Play song  
+    }
+  }
+  hasEntered = true;
+}
+
+
+// SERVER
+Script 344 OPEN
+{
+  if(!doneInit) { // Init array to zero
+    defaultPlayedSongs(0);  
+    doneInit = true;
+  }
+  if (isServerMode()) { // Start a song if we're a server just starting up
+    int songId = getNextSong(); 
+    ACS_Execute(390, 0, songId, 0, 1);
+  }
+}
+// CLIENT
 Script 345 OPEN clientside
 {
-  if(!isServerMode())
-  {
-    if(!doneInit) {
-      defaultPlayedSongs(0);  
-      doneInit = true;
-    }
-    //silence()
-    int songId = getNextSong();
-    // playSong(songId);
+  if(!doneInit) { // Init array to zero
+    defaultPlayedSongs(0);  
+    doneInit = true;
   }
 }
-// END INIT
+//// END INIT ////
 
-// START CONTROL
+
+// LOGIC
+// Play a song. This may be called from client side or server side depending on the setting
+// songId: song to play
+// curSongId: the currentSong ID to fall back on
+// isStart: are we asking to play the first song of the level?
+script 390 (int songId, int curSongId, int isStart) 
+{
+  if(!isStart) { // Shouldn't perform the change noise if this is the start
+    silence();
+    tapeChange();
+    Delay(35); 
+    // Delay means actual tics so this script will hang until the player is passing time
+    // This means that the song playing is delayed until the fade into is done, hence
+    // cannot be run in OPEN/ENTER properly
+  }
+  if(isStart && isDefaultMode()) {
+    //Do nothing if default mode is set
+  }
+  else if(songId > 0) // Real song ID, play it
+  {
+    playSong(songId);
+    Delay(35);
+    showInfo(songId);
+    setDefaultMode(0);
+  }
+  else if (songId == 0 && isDefaultMode()) { // Toggle default off, play the current song again
+    playSong(curSongId);
+    Delay(35);
+    showInfo(curSongId);
+    setDefaultMode(0);
+  }
+  else if(songId == 0 && !isDefaultMode()){ // Toggle default on, play the default song
+    playSong(0);
+    Delay(35);
+    showInfo(0);
+    setDefaultMode(1);
+  }
+
+}
+
+//// START CONTROL ////
+
+// LOGIC
+// Perform various jukebox actions. Can run on client or server
 script 346 (int mode)
 {
   int songId;
   switch (mode)
   {
     case 0: // Next song
-      setDefaultMode(0);
-      silence();
-      playTapeChange();
-      Delay(35);
       songId = getNextSong();
-      playSong(songId);
-      Delay(35);
-      showInfo(songId);
+      ACS_Execute(390, 0, songId, 0, 0);
       break;
     case 1: // Previous song
-      setDefaultMode(0);
       songId = getPreviousSong();
-      if(songId > 0) { // Don't stop the music if there are no previous songs
-        setDefaultMode(0);
-        silence();
-        playTapeChange();
-        Delay(35);
-        playSong(songId);
-        Delay(35);
-        showInfo(songId);
+      if(songId > 0) { // Don't do anything if there are no previous songs
+        ACS_Execute(390, 0, songId, 0, 0);
       }
       break;
     case 2: // Default Song
-      silence();
-      playTapeChange();
-      Delay(35);
-      if(isDefaultMode())
-      {
-        songId = getCurrentSong();
-        if(songId == 0) {
-          songId = getNextSong();
-        }
-        playSong(songId);
-        Delay(35);
-        showInfo(songId);
-        setDefaultMode(0);
+      songId = getCurrentSong();
+      if(songId == 0) {
+        songId = getNextSong();
       }
-      else {
-        playSong(0);
-        Delay(35);
-        showInfo(0);
-        setDefaultMode(1);
-      }  
+      //!! Note the different parameter position. songId is in the curSongId slot
+      //  we're actually asking to play song zero (default song)
+      ACS_Execute(390, 0, 0, songId, 0);
       break;
   }
 }
 
+// SERVER
+// 's_nextsong', 's_prevsong', 's_origsong' alias. Runs server side only
 script 347 (int mode)
 {
   if(isServerMode()) {
     ACS_Execute(346, 0, mode, 0, 0);  
   }
 }
+
+// CLIENT
+// 'nextsong', 'prevsong', 'origsong' alias. Runs clientside & only on the requester machine
 script 348 (int mode) NET clientside
 {
   if(!isServerMode()) {
     ACS_Execute(346, 0, mode, 0, 0);  
   }
 }
-//END CONTROL
 
-// START MANUAL SONG
+// LOGIC
+// Specify an exact song to play. Can run on server or client
 script 349 (int songId)
 {
 
-  if(songId > 0){
-    if(isValidSong(songId)) {
-      setDefaultMode(0);
+  if(songId > 0){ // Don't play default this way
+    if(isValidSong(songId)) { // Do nothing if the songId is too great
+      setDefaultMode(0);  // If we're manually selecting, we should move out of default mode
+
+      // Write this next song to the history
       if(currentSongIndex+1 < MAX_SUPPORTED_SONGS) {
         currentSongIndex += 1;
         playedSongs[currentSongIndex] = songId;
         defaultPlayedSongs(currentSongIndex+1); // Empty out saved history for songs after this one
       }
-      silence();
-      playTapeChange();
-      Delay(35);
-      playSong(songId);
-      Delay(35);
-      showInfo(songId);
+      ACS_Execute(390, 0, songId, 0, 0); //Play song
     }
   }
 }
+
+//SERVER
+// 's_song {ID}' alias. Runs server side only
 script 350 (int songId) // Manually changing the song
 {
   if(isServerMode()) {
@@ -376,6 +398,8 @@ script 350 (int songId) // Manually changing the song
   }
 }
 
+//CLIENT
+// 'song {ID}' alias. Runs clientside & only on the requester machine
 script 351 (int songId) NET clientside // Manually changing the song
 {
   if(!isServerMode()) {
@@ -383,4 +407,4 @@ script 351 (int songId) NET clientside // Manually changing the song
   }
 }
 
-// END MANUAL SONG
+//// END CONTROL ////
