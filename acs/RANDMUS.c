@@ -76,7 +76,7 @@ function void silence(void)
   SetMusic("silence", 0);
 }
 
-function int playSong(int songId) 
+function int playMusic(int songId) 
 {
   if(songId > 0) 
   {
@@ -205,8 +205,8 @@ Script 340 (void) NET
   showLocalInfo(songId);  
 }
 
-// Called by 'origsong' command
-Script 341 (void) NET clientside
+// Called by 'songinfo' command
+Script "MusSongInfo" (void) NET clientside
 {
   if(isServerMode()) {
     RequestScriptPuke(340, 0, 0, 0); //Request the server parrot the songinfo
@@ -227,7 +227,7 @@ Script 341 (void) NET clientside
 //// START INIT ////
 // SERVER
 // Tell new players the currently playing song
-Script 342 ENTER
+Script "MusServerEnter" ENTER
 {
   if(isServerMode())
   {
@@ -244,13 +244,14 @@ Script 342 ENTER
 // as soon as one of them joins. Can't find a way to properly link client map variables here
 // to specific players
 bool hasEntered = false; // Must run ONLY once
-Script 331 ENTER CLIENTSIDE
+Script "MusClientEnter" ENTER CLIENTSIDE
 {
   if(!isServerMode() && !hasEntered) // This will be using client side song history
   {
     if(!isDefaultMode()) { // Don't want to progress the nextSong if we're in default mode
       int songId = getNextSong();
-      ACS_ExecuteWithResult(390, songId, 0, 1, 0); // Play song  
+      // For some reason, WithResult causes the script to execute faster, removing any potential delay before hearing the proper song
+      ACS_NamedExecuteWithResult("MusPlaySong", songId, 0, 1, 0); 
     }
   }
   hasEntered = true;
@@ -258,7 +259,7 @@ Script 331 ENTER CLIENTSIDE
 
 
 // SERVER
-Script 344 OPEN
+Script "MusServerOpen" OPEN
 {
   if(!doneInit) { // Init array to zero
     defaultPlayedSongs(0);  
@@ -266,11 +267,11 @@ Script 344 OPEN
   }
   if (isServerMode()) { // Start a song if we're a server just starting up
     int songId = getNextSong(); 
-    ACS_Execute(390, 0, songId, 0, 1);
+    ACS_NamedExecute("MusPlaySong", 0, songId, 0, 1);
   }
 }
 // CLIENT
-Script 345 OPEN clientside
+Script "MusClientOpen" OPEN clientside
 {
   if(!doneInit) { // Init array to zero
     defaultPlayedSongs(0);  
@@ -285,7 +286,7 @@ Script 345 OPEN clientside
 // songId: song to play
 // curSongId: the currentSong ID to fall back on
 // isStart: are we asking to play the first song of the level?
-script 390 (int songId, int curSongId, int isStart) 
+script "MusPlaySong" (int songId, int curSongId, int isStart) 
 {
   if(!isStart) { // Shouldn't perform the change noise if this is the start
     silence();
@@ -300,19 +301,19 @@ script 390 (int songId, int curSongId, int isStart)
   }
   else if(songId > 0) // Real song ID, play it
   {
-    playSong(songId);
+    playMusic(songId);
     Delay(35);
     showInfo(songId);
     setDefaultMode(0);
   }
   else if (songId == 0 && isDefaultMode()) { // Toggle default off, play the current song again
-    playSong(curSongId);
+    playMusic(curSongId);
     Delay(35);
     showInfo(curSongId);
     setDefaultMode(0);
   }
   else if(songId == 0 && !isDefaultMode()){ // Toggle default on, play the default song
-    playSong(0);
+    playMusic(0);
     Delay(35);
     showInfo(0);
     setDefaultMode(1);
@@ -324,19 +325,19 @@ script 390 (int songId, int curSongId, int isStart)
 
 // LOGIC
 // Perform various jukebox actions. Can run on client or server
-script 346 (int mode)
+script "MusChangeSong" (int mode)
 {
   int songId;
   switch (mode)
   {
     case 0: // Next song
       songId = getNextSong();
-      ACS_Execute(390, 0, songId, 0, 0);
+      ACS_NamedExecute("MusPlaySong", 0, songId, 0, 0);
       break;
     case 1: // Previous song
       songId = getPreviousSong();
       if(songId > 0) { // Don't do anything if there are no previous songs
-        ACS_Execute(390, 0, songId, 0, 0);
+        ACS_NamedExecute("MusPlaySong", 0, songId, 0, 0);
       }
       break;
     case 2: // Default Song
@@ -346,32 +347,32 @@ script 346 (int mode)
       }
       //!! Note the different parameter position. songId is in the curSongId slot
       //  we're actually asking to play song zero (default song)
-      ACS_Execute(390, 0, 0, songId, 0);
+      ACS_NamedExecute("MusPlaySong", 0, 0, songId, 0);
       break;
   }
 }
 
 // SERVER
 // 's_nextsong', 's_prevsong', 's_origsong' alias. Runs server side only
-script 347 (int mode)
+script "MusServerChangeSong" (int mode)
 {
   if(isServerMode()) {
-    ACS_Execute(346, 0, mode, 0, 0);  
+    ACS_NamedExecute("MusChangeSong", 0, mode, 0, 0);  
   }
 }
 
 // CLIENT
 // 'nextsong', 'prevsong', 'origsong' alias. Runs clientside & only on the requester machine
-script 348 (int mode) NET clientside
+script "MusClientChangeSong" (int mode) NET clientside
 {
   if(!isServerMode()) {
-    ACS_Execute(346, 0, mode, 0, 0);  
+    ACS_NamedExecute("MusChangeSong", 0, mode, 0, 0);  
   }
 }
 
 // LOGIC
 // Specify an exact song to play. Can run on server or client
-script 349 (int songId)
+script "MusSetSong" (int songId)
 {
 
   if(songId > 0){ // Don't play default this way
@@ -384,26 +385,26 @@ script 349 (int songId)
         playedSongs[currentSongIndex] = songId;
         defaultPlayedSongs(currentSongIndex+1); // Empty out saved history for songs after this one
       }
-      ACS_Execute(390, 0, songId, 0, 0); //Play song
+      ACS_NamedExecute("MusPlaySong", 0, songId, 0, 0); //Play song
     }
   }
 }
 
 //SERVER
 // 's_song {ID}' alias. Runs server side only
-script 350 (int songId) // Manually changing the song
+script "MusServerSetSong" (int songId) // Manually changing the song
 {
   if(isServerMode()) {
-    ACS_Execute(349, 0, songId, 0, 0);  
+    ACS_NamedExecute("MusSetSong", 0, songId, 0, 0);  
   }
 }
 
 //CLIENT
 // 'song {ID}' alias. Runs clientside & only on the requester machine
-script 351 (int songId) NET clientside // Manually changing the song
+script "MusClientSetSong" (int songId) NET clientside // Manually changing the song
 {
   if(!isServerMode()) {
-    ACS_Execute(349, 0, songId, 0, 0);  
+    ACS_NamedExecute("MusSetSong", 0, songId, 0, 0);  
   }
 }
 

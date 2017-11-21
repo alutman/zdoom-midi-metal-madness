@@ -6,14 +6,14 @@ addmenukey "Show song info" songinfo
 addmenukey "Default song" origsong
 
 
-alias songinfo "puke -341"
+alias songinfo "puke -340"
 
-alias nextsong "puke -348 0"
-alias prevsong "puke -348 1"
-alias origsong "puke -348 2"
-alias song "puke 351 %1"
+alias nextsong "pukename \"MusClientChangeSong\" 0"
+alias prevsong "pukename \"MusClientChangeSong\" 1"
+alias origsong "pukename \"MusClientChangeSong\" 2"
+alias song "pukename \"MusClientSetSong\" %1"
 
-alias s_nextsong "puke -347 0"
-alias s_prevsong "puke -347 1"
-alias s_origsong "puke -347 2"
-alias s_song "puke 350 %1"
+alias s_nextsong "pukename \"MusServerChangeSong\" 0"
+alias s_prevsong "pukename \"MusServerChangeSong\" 1"
+alias s_origsong "pukename \"MusServerChangeSong\" 2"
+alias s_song "pukename \"MusServerSetSong\" %1"
